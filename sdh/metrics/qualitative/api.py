@@ -30,14 +30,14 @@ from sdh.metrics.server import SCM, ORG, CI, APIError
 from itertools import dropwhile
 
 
-@app.metric('/member-quality', id='member-quality', title='Quality', parameters=[ORG.Person])
-def get_member_quality(uid, **kwargs):
-    def __calc_quality(s, rm):
-        if not s:
-            return 1.0 - rm
-        else:
-            return (s + rm) / 2.0
+def __calc_quality(s, rm):
+    if not s:
+        return 1.0 - rm
+    else:
+        return (s + rm) / 2.0
 
+
+def calculate_member_quality(uid, **kwargs):
     def __process_row():
         return [__calc_quality(s, rm) for s, rm in zip(sr, rm_activity)]
 
@@ -60,12 +60,17 @@ def get_member_quality(uid, **kwargs):
         raise APIError(e.message)
 
 
+@app.metric('/member-quality', id='member-quality', title='Quality', parameters=[ORG.Person])
+def get_member_quality(uid, **kwargs):
+    return calculate_member_quality(uid, **kwargs)
+
+
 @app.metric('/repository-quality', id='repository-quality', title='Quality', parameters=[SCM.Repository])
 def get_repository_quality(rid, **kwargs):
     try:
         repo_ctx, devs = app.request_view('repository-developers', rid=rid, **kwargs)
         devs = map(lambda x: x['id'], devs)
-        devs_quality = map(lambda x: app.request_metric('sum-member-quality', uid=x, **kwargs), devs)
+        devs_quality = map(lambda x: calculate_member_quality(x, **kwargs), devs)
 
         context = repo_ctx
         if devs_quality:
@@ -81,7 +86,7 @@ def get_project_quality(pjid, **kwargs):
     try:
         project_ctx, devs = app.request_view('project-developers', pjid=pjid, **kwargs)
         devs = map(lambda x: x['id'], devs)
-        devs_quality = map(lambda x: app.request_metric('sum-member-quality', uid=x, **kwargs), devs)
+        devs_quality = map(lambda x: calculate_member_quality(x, **kwargs), devs)
 
         context = project_ctx
         if devs_quality:
@@ -97,7 +102,7 @@ def get_product_quality(prid, **kwargs):
     try:
         product_ctx, devs = app.request_view('product-developers', prid=prid, **kwargs)
         devs = map(lambda x: x['id'], devs)
-        devs_quality = map(lambda x: app.request_metric('sum-member-quality', uid=x, **kwargs), devs)
+        devs_quality = map(lambda x: calculate_member_quality(x, **kwargs), devs)
 
         context = product_ctx
         if devs_quality:
@@ -167,6 +172,7 @@ def get_product_cost(prid, **kwargs):
 @app.metric('/repository-ttm', id='repository-ttm', title='Time-to-market', parameters=[SCM.Repository])
 def get_repository_ttm(rid, **kwargs):
     try:
+        app.request_metric('sum-product-passed-executions')
         kwargs['max'] = 0
         context, devs = app.request_metric('sum-repository-developers', rid=rid, **kwargs)
         kwargs['max'] = context['size']
