@@ -169,19 +169,34 @@ def get_product_cost(prid, **kwargs):
         raise APIError(e.message)
 
 
-@app.metric('/repository-ttm', id='repository-ttm', title='Time-to-market', parameters=[SCM.Repository])
-def get_repository_ttm(rid, **kwargs):
+@app.metric('/product-ttm', id='product-timetomarket', title='Time-to-market', parameters=[ORG.Product])
+def get_product_ttm(prid, **kwargs):
     try:
-        app.request_metric('sum-product-passed-executions')
-        kwargs['max'] = 0
-        context, devs = app.request_metric('sum-repository-developers', rid=rid, **kwargs)
+        context, passed = app.request_metric('sum-passed-product-executions', prid=prid, **kwargs)
         kwargs['max'] = context['size']
         kwargs['begin'] = context['begin']
         kwargs['end'] = context['end']
-        context, commits = app.request_metric('sum-repository-commits', rid=rid, **kwargs)
-        pairs = list(dropwhile(lambda x: x[1] == 0, zip(devs, commits)))
-        pairs = list(dropwhile(lambda x: x[1] == 0, reversed(pairs)))
-        res = [cost(nd, nc) for nd, nc in pairs]
-        return context, [sum(res)]
+        _, total = app.request_metric('sum-passed-executions', **kwargs)
+        res = [p / float(t) if t else 0 for p, t in zip(passed, total)]
+        return context, res
+    except (EnvironmentError, AttributeError) as e:
+        raise APIError(e.message)
+
+
+@app.metric('/product-health', id='product-health', title='Health', parameters=[ORG.Product])
+def get_product_health(prid, **kwargs):
+    try:
+        context, buildtime = app.request_metric('sum-product-buildtime', prid=prid, **kwargs)
+        _, brokentime = app.request_metric('sum-product-brokentime', prid=prid, **kwargs)
+        _, timetofix = app.request_metric('avg-product-timetofix', prid=prid, **kwargs)
+
+        health = 0
+        if buildtime and brokentime and timetofix:
+            base_health = (timetofix[0] + brokentime[0]) / buildtime[0] if buildtime[0] else 10000.0
+            base_health = min(10000.0, base_health)
+            base_health = max(0.0, base_health / 10000.0)
+            health = 1.0 - base_health
+
+        return context, [health]
     except (EnvironmentError, AttributeError) as e:
         raise APIError(e.message)

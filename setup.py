@@ -28,7 +28,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="SDH-Qualitative-Metrics",
-    version="0.0.2",
+    version="0.0.3",
     author="Fernando Serena",
     author_email="fernando.serena@centeropenmiddleware.com",
     description="A service that calculates a bunch of qualitative metrics on data from SCM and CI domains.",
