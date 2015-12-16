@@ -177,11 +177,12 @@ def get_product_cost(prid, **kwargs):
 def get_product_ttm(prid, **kwargs):
     try:
         context, passed = app.request_metric('sum-passed-product-executions', prid=prid, **kwargs)
+        _, activity = app.request_metric('sum-product-activity', prid=prid, **kwargs)
         kwargs['max'] = context['size']
         kwargs['begin'] = context['begin']
         kwargs['end'] = context['end']
         _, total = app.request_metric('sum-passed-executions', **kwargs)
-        res = [p / float(t) if t else 0 for p, t in zip(passed, total)]
+        res = [(a + (p / float(t))) / 2.0 if t else 0 for p, a, t in zip(passed, activity, total)]
         return context, res
     except (EnvironmentError, AttributeError) as e:
         raise APIError(e.message)
