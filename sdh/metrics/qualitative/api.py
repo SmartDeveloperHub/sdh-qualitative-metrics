@@ -91,7 +91,9 @@ def get_project_quality(pjid, **kwargs):
         context = project_ctx
         if devs_quality:
             context = devs_quality[0][0]
-        res = [sum(_)/len(_) for _ in zip(*map(lambda x: x[1], devs_quality))]
+            res = [sum(_) / len(_) for _ in zip(*map(lambda x: x[1], devs_quality))]
+        else:
+            res = [0]
         return context, res
     except (EnvironmentError, AttributeError) as e:
         raise APIError(e.message)
@@ -107,7 +109,9 @@ def get_product_quality(prid, **kwargs):
         context = product_ctx
         if devs_quality:
             context = devs_quality[0][0]
-        res = [sum(_)/len(_) for _ in zip(*map(lambda x: x[1], devs_quality))]
+            res = [sum(_) / len(_) for _ in zip(*map(lambda x: x[1], devs_quality))]
+        else:
+            res = [0]
         return context, res
     except (EnvironmentError, AttributeError) as e:
         raise APIError(e.message)
